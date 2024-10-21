@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grayscale to Dice Image Converter</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f4;
+            text-align: center;
+            padding: 20px;
+        }
+        h1 {
+            color: #007bff;
+            font-size: 36px;
+            margin-bottom: 20px;
+        }
+        #controls {
+            display: inline-block;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        label {
+            font-size: 18px;
+            color: #555;
+            margin-right: 10px;
+        }
+        input[type="number"]{
+            padding: 8px;
+            margin: 10px 0;
+            font-size: 16px;
+            border: 1px solid #007bff;
+            border-radius: 5px;
+            width: 100px;
+        }
+        input[type="file"] {
+            padding: 8px;
+            margin: 10px 0;
+            font-size: 16px;
+            border: 1px solid #007bff;
+            border-radius: 5px;
+            width: 350px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #outputCanvas {
+            border: 1px solid #333;
+            margin-top: 20px;
+        }
+        #downloadButton {
+            display: none;
+            background-color: #28a745;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>CCL : DICE PORTRAIT</h1>
+
+<div id="controls">
+    <input type="file" id="imageInput" accept="image/*">
+    <br>
+    <label for="widthInput">Width:</label>
+    <input type="number" id="widthInput" value="50" min="1" step="1">
+    <label for="heightInput">Height:</label>
+    <input type="number" id="heightInput" value="50" min="1" step="1">
+    <br>
+    <button id="makeMosaicButton">Make Dice Mosaic</button>
+</div>
+<br>
+<canvas id="outputCanvas"></canvas>
+<br>
+<button id="downloadButton">Download Image</button>
+
+<script>
+    let numDiceWide = 50;
+    let numDiceTall = 50;
+
+    const diceImages = {
+        1: "1.png",
+        2: "2.png",
+        3: "3.png",
+        4: "4.png",
+        5: "5.png",
+        6: "6.png"
+    };
+
+    const outputCanvas = document.getElementById('outputCanvas');
+    const ctx = outputCanvas.getContext('2d');
+    const downloadButton = document.getElementById('downloadButton');
+
+    function greyscaleToDiceValue(val) {
+        if (val < 42) return 1;
+        else if (val < 84) return 2;
+        else if (val < 126) return 3;
+        else if (val < 168) return 4;
+        else if (val < 210) return 5;
+        return 6;
+    }
+
+    async function drawDiceImage(pixels, diceWidth, diceHeight) {
+        const outputWidth = diceWidth * numDiceWide;
+        const outputHeight = diceHeight * numDiceTall;
+        outputCanvas.width = outputWidth;
+        outputCanvas.height = outputHeight;
+
+        for (let i = 0; i < pixels.length; i++) {
+            const grayscaleValue = pixels[i];
+            const diceValue = greyscaleToDiceValue(grayscaleValue);
+            const x = (i % numDiceWide) * diceWidth;
+            const y = Math.floor(i / numDiceWide) * diceHeight;
+
+            const img = new Image();
+            img.src = diceImages[diceValue];
+
+            await new Promise(resolve => {
+                img.onload = () => {
+                    ctx.drawImage(img, x, y, diceWidth, diceHeight);
+                    resolve();
+                };
+            });
+        }
+
+        downloadButton.style.display = 'inline-block';
+    }
+
+    document.getElementById('makeMosaicButton').addEventListener('click', function () {
+        const file = document.getElementById('imageInput').files[0];
+        if (file) {
+            numDiceWide = parseInt(document.getElementById('widthInput').value, 10);
+            numDiceTall = parseInt(document.getElementById('heightInput').value, 10);
+
+            const img = new Image();
+            const reader = new FileReader();
+
+            reader.onload = function (e) {
+                img.src = e.target.result;
+                img.onload = function () {
+                    const offscreenCanvas = document.createElement('canvas');
+                    const offscreenCtx = offscreenCanvas.getContext('2d');
+                    offscreenCanvas.width = numDiceWide;
+                    offscreenCanvas.height = numDiceTall;
+                    offscreenCtx.drawImage(img, 0, 0, numDiceWide, numDiceTall);
+
+                    const imageData = offscreenCtx.getImageData(0, 0, numDiceWide, numDiceTall);
+                    const pixels = [];
+                    for (let i = 0; i < imageData.data.length; i += 4) {
+                        const r = imageData.data[i];
+                        const g = imageData.data[i + 1];
+                        const b = imageData.data[i + 2];
+                        const grayscaleValue = Math.floor((r + g + b) / 3);
+                        pixels.push(grayscaleValue);
+                    }
+
+                    const diceImage = new Image();
+                    diceImage.src = diceImages[1];
+                    diceImage.onload = function () {
+                        const diceWidth = diceImage.width;
+                        const diceHeight = diceImage.height;
+                        drawDiceImage(pixels, diceWidth, diceHeight);
+                    };
+                };
+            };
+            reader.readAsDataURL(file);
+        } else {
+            alert("Please select an image file.");
+        }
+    });
+
+    downloadButton.addEventListener('click', function () {
+        const link = document.createElement('a');
+        link.download = 'dice_output.png';
+        link.href = outputCanvas.toDataURL('image/png');
+        link.click();
+    });
+</script>
+
+</body>
+</html>

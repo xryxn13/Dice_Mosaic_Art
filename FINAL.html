@@ -1,0 +1,627 @@
+
+
+
+<!-- FINAL CODE WITHOUT ANIMATION -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grayscale to Dice Image Converter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        #outputCanvas {
+            border: 1px solid black;
+            margin-top: 20px;
+        }
+        #controls {
+            margin: 20px 0;
+        }
+        input[type="number"] {
+            width: 60px;
+            padding: 5px;
+            margin: 0 10px;
+        }
+        #downloadButton {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<h1>CCL : DICE PORTRAIT</h1>
+
+<div id="controls">
+    <label for="widthInput">Width:</label>
+    <input type="number" id="widthInput" value="50" min="1" step="1">
+    <label for="heightInput">Height:</label>
+    <input type="number" id="heightInput" value="50" min="1" step="1">
+</div>
+
+<input type="file" id="imageInput" accept="image/*">
+<br>
+<canvas id="outputCanvas"></canvas>
+<br>
+<button id="downloadButton" style="display: none;">Download Image</button>
+
+<script>
+    let numDiceWide = 50;
+    let numDiceTall = 50;
+
+    const diceImages = {
+        1: "1.png",
+        2: "2.png",
+        3: "3.png",
+        4: "4.png",
+        5: "5.png",
+        6: "6.png"
+    };
+
+    const outputCanvas = document.getElementById('outputCanvas');
+    const ctx = outputCanvas.getContext('2d');
+    const downloadButton = document.getElementById('downloadButton');
+
+    // Updated function to convert grayscale value to dice number (1-6)
+    function greyscaleToDiceValue(val) {
+        if (val < 42) return 1;
+        else if (val < 84) return 2;
+        else if (val < 126) return 3;
+        else if (val < 168) return 4;
+        else if (val < 210) return 5;
+        return 6;
+    }
+
+    // Function to draw dice images based on grayscale pixel values
+    async function drawDiceImage(pixels, diceWidth, diceHeight) {
+        const outputWidth = diceWidth * numDiceWide;
+        const outputHeight = diceHeight * numDiceTall;
+        outputCanvas.width = outputWidth;
+        outputCanvas.height = outputHeight;
+
+        for (let i = 0; i < pixels.length; i++) {
+            const grayscaleValue = pixels[i];
+            const diceValue = greyscaleToDiceValue(grayscaleValue);
+            const x = (i % numDiceWide) * diceWidth;
+            const y = Math.floor(i / numDiceWide) * diceHeight;
+
+            const img = new Image();
+            img.src = diceImages[diceValue];
+
+            // Draw each dice image at the corresponding location
+            await new Promise(resolve => {
+                img.onload = () => {
+                    ctx.drawImage(img, x, y, diceWidth, diceHeight);
+                    resolve();
+                };
+            });
+        }
+
+        // Display the download button after the image has been drawn
+        downloadButton.style.display = 'inline-block';
+    }
+
+    // Load the selected image
+    document.getElementById('imageInput').addEventListener('change', function (event) {
+        const file = event.target.files[0];
+        if (file) {
+            // Get user-defined width and height
+            numDiceWide = parseInt(document.getElementById('widthInput').value, 10);
+            numDiceTall = parseInt(document.getElementById('heightInput').value, 10);
+
+            const img = new Image();
+            const reader = new FileReader();
+
+            reader.onload = function (e) {
+                img.src = e.target.result;
+                img.onload = function () {
+                    // Resize image to grid size
+                    const offscreenCanvas = document.createElement('canvas');
+                    const offscreenCtx = offscreenCanvas.getContext('2d');
+                    offscreenCanvas.width = numDiceWide;
+                    offscreenCanvas.height = numDiceTall;
+                    offscreenCtx.drawImage(img, 0, 0, numDiceWide, numDiceTall);
+
+                    // Convert image to grayscale pixel data
+                    const imageData = offscreenCtx.getImageData(0, 0, numDiceWide, numDiceTall);
+                    const pixels = [];
+                    for (let i = 0; i < imageData.data.length; i += 4) {
+                        // Get the grayscale value
+                        const r = imageData.data[i];
+                        const g = imageData.data[i + 1];
+                        const b = imageData.data[i + 2];
+                        const grayscaleValue = Math.floor((r + g + b) / 3);
+                        pixels.push(grayscaleValue);
+                    }
+
+                    // Load dice image dimensions to calculate output image size
+                    const diceImage = new Image();
+                    diceImage.src = diceImages[1];
+                    diceImage.onload = function () {
+                        const diceWidth = diceImage.width;
+                        const diceHeight = diceImage.height;
+                        drawDiceImage(pixels, diceWidth, diceHeight);
+                    };
+                };
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    // Download the output canvas as an image
+    downloadButton.addEventListener('click', function () {
+        const link = document.createElement('a');
+        link.download = 'dice_output.png';
+        link.href = outputCanvas.toDataURL('image/png');
+        link.click();
+    });
+</script>
+
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- DICE ANIMATION CODE USELESS -->
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rotating Dice Animation</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+
+        .dice {
+            width: 100px;
+            height: 100px;
+            position: relative;
+            transform-style: preserve-3d;
+            transform: rotateX(0deg) rotateY(0deg);
+            transition: transform 0.5s ease;
+        }
+
+        .face {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            background: black;
+            border: 2px solid #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+        }
+
+        .front { transform: rotateY(0deg) translateZ(50px); }
+        .back { transform: rotateY(180deg) translateZ(50px); }
+        .left { transform: rotateY(-90deg) translateZ(50px); }
+        .right { transform: rotateY(90deg) translateZ(50px); }
+        .top { transform: rotateX(90deg) translateZ(50px); }
+        .bottom { transform: rotateX(-90deg) translateZ(50px); }
+
+        .dot {
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+        }
+
+        /* Positioning the dots for each face */
+        .front .dot1 { top: 40%; left: 40%; }
+        .back .dot1 { top: 10%; right: 20%; }
+        .back .dot2 { top: 40%; right: 20%; }
+        .back .dot3 { top: 70%; right: 20%; }
+        .back .dot4 { top: 10%; right: 60%; }
+        .back .dot5 { top: 40%; right: 60%; }
+        .back .dot6 { top: 70%; right: 60%; }
+
+        .left .dot1 { bottom: 20%; left: 20%; }
+        .left .dot2 { bottom: 20%; left: 60%; }
+        .left .dot3 { bottom: 40%; left: 40%; }
+        .left .dot4 { bottom: 60%; left: 20%; }
+        .left .dot5 { bottom: 60%; left: 60%; }
+        
+        .right .dot1 { bottom: 20%; left: 20%; }
+        .right .dot2 { bottom: 60%; right: 20%; }
+
+        .top .dot1 { top: 20%; right: 20%; }
+        .top .dot2 { top: 20%; right: 60%; }
+        .top .dot3 { top: 60%; right: 20%; }
+        .top .dot4 { top: 60%; right: 60%; }
+        
+        .bottom .dot1 { top: 20%; right: 60%; }
+        .bottom .dot2 { top: 40%; right: 40%; }
+        .bottom .dot3 { top: 60%; right: 20%; }
+    </style>
+</head>
+<body>
+    <div class="dice" id="dice">
+        <div class="face front">
+            <div class="dot dot1"></div>
+        </div>
+        <div class="face back">
+            <div class="dot dot1"></div>
+            <div class="dot dot2"></div>
+            <div class="dot dot3"></div>
+            <div class="dot dot4"></div>
+            <div class="dot dot5"></div>
+            <div class="dot dot6"></div>
+        </div>
+        <div class="face left">
+            <div class="dot dot1"></div>
+            <div class="dot dot2"></div>
+            <div class="dot dot3"></div>
+            <div class="dot dot4"></div>
+            <div class="dot dot5"></div>
+        </div>
+        <div class="face right">
+            <div class="dot dot1"></div>
+            <div class="dot dot2"></div>
+        </div>
+        <div class="face top">
+            <div class="dot dot1"></div>
+            <div class="dot dot2"></div>
+            <div class="dot dot3"></div>
+            <div class="dot dot4"></div>
+        </div>
+        <div class="face bottom">
+            <div class="dot dot1"></div>
+            <div class="dot dot2"></div>
+            <div class="dot dot3"></div>
+        </div>
+    </div>
+    <br>
+    <br>
+    <button onclick="rotateDice('fronttoleft')">Front to Left</button>
+    <button onclick="rotateDice('fronttoright')">Front to Right</button>
+    <button onclick="rotateDice('fronttoback')">Front to Back</button>
+    <button onclick="rotateDice('fronttotop')">Front to Top</button>
+    <button onclick="rotateDice('fronttopbottom')">Front to Bottom</button>
+    <button onclick="rotateDice('front')">Front</button>
+
+    <script>
+        function rotateDice(direction) {
+            const dice = document.getElementById('dice');
+            
+            switch(direction) {
+                case 'fronttoleft':
+                    dice.style.transform = 'rotateY(90deg)';
+                    break;
+                case 'fronttoright':
+                    dice.style.transform = 'rotateY(-90deg)';
+                    break;
+                case 'fronttoback':
+                    dice.style.transform = 'rotateY(180deg)';
+                    break;
+                case 'fronttotop':
+                    dice.style.transform = 'rotateX(-90deg)';
+                    break;
+                case 'fronttopbottom':
+                    dice.style.transform = 'rotateX(90deg)';
+                    break;
+                case 'front':
+                    dice.style.transform = 'rotateY(0) rotateX(0)';
+                    break;
+            }
+        }
+    </script>
+</body>
+</html>
+
+
+ -->
+
+
+
+
+
+
+
+<!-- FINAL CODE WITH ANIMATION -->
+<!-- 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grayscale to Dice Image Converter & Dice Animation</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+
+        .dice {
+            width: 100px;
+            height: 100px;
+            position: relative;
+            transform-style: preserve-3d;
+            transform: rotateX(0deg) rotateY(0deg);
+            transition: transform 0.5s ease;
+        }
+
+        .face {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            background: black;
+            border: 2px solid #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+        }
+
+        .front { transform: rotateY(0deg) translateZ(50px); }
+        .back { transform: rotateY(180deg) translateZ(50px); }
+        .left { transform: rotateY(-90deg) translateZ(50px); }
+        .right { transform: rotateY(90deg) translateZ(50px); }
+        .top { transform: rotateX(90deg) translateZ(50px); }
+        .bottom { transform: rotateX(-90deg) translateZ(50px); }
+
+        .dot {
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+        }
+
+        /* Positioning the dots for each face */
+        .front .dot1 { top: 40%; left: 40%; }
+        .back .dot1 { top: 10%; right: 20%; }
+        .back .dot2 { top: 40%; right: 20%; }
+        .back .dot3 { top: 70%; right: 20%; }
+        .back .dot4 { top: 10%; right: 60%; }
+        .back .dot5 { top: 40%; right: 60%; }
+        .back .dot6 { top: 70%; right: 60%; }
+
+        .left .dot1 { bottom: 20%; left: 20%; }
+        .left .dot2 { bottom: 20%; left: 60%; }
+        .left .dot3 { bottom: 40%; left: 40%; }
+        .left .dot4 { bottom: 60%; left: 20%; }
+        .left .dot5 { bottom: 60%; left: 60%; }
+        
+        .right .dot1 { bottom: 20%; left: 20%; }
+        .right .dot2 { bottom: 60%; right: 20%; }
+
+        .top .dot1 { top: 20%; right: 20%; }
+        .top .dot2 { top: 20%; right: 60%; }
+        .top .dot3 { top: 60%; right: 20%; }
+        .top .dot4 { top: 60%; right: 60%; }
+        
+        .bottom .dot1 { top: 20%; right: 60%; }
+        .bottom .dot2 { top: 40%; right: 40%; }
+        .bottom .dot3 { top: 60%; right: 20%; }
+
+        #outputCanvas {
+            border: 1px solid black;
+            margin-top: 20px;
+        }
+        #controls {
+            margin: 20px 0;
+        }
+        input[type="number"] {
+            width: 60px;
+            padding: 5px;
+            margin: 0 10px;
+        }
+        #downloadButton {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="dice" id="dice">
+        <div class="face front">
+            <div class="dot dot1"></div>
+        </div>
+        <div class="face back">
+            <div class="dot dot1"></div>
+            <div class="dot dot2"></div>
+            <div class="dot dot3"></div>
+            <div class="dot dot4"></div>
+            <div class="dot dot5"></div>
+            <div class="dot dot6"></div>
+        </div>
+        <div class="face left">
+            <div class="dot dot1"></div>
+            <div class="dot dot2"></div>
+            <div class="dot dot3"></div>
+            <div class="dot dot4"></div>
+            <div class="dot dot5"></div>
+        </div>
+        <div class="face right">
+            <div class="dot dot1"></div>
+            <div class="dot dot2"></div>
+        </div>
+        <div class="face top">
+            <div class="dot dot1"></div>
+            <div class="dot dot2"></div>
+            <div class="dot dot3"></div>
+            <div class="dot dot4"></div>
+        </div>
+        <div class="face bottom">
+            <div class="dot dot1"></div>
+            <div class="dot dot2"></div>
+            <div class="dot dot3"></div>
+        </div>
+    </div>
+
+    <br><br>
+
+    <h1>Grayscale Image to Dice Converter</h1>
+    <div id="controls">
+        <label for="widthInput">Width:</label>
+        <input type="number" id="widthInput" value="50" min="1" step="1">
+        <label for="heightInput">Height:</label>
+        <input type="number" id="heightInput" value="50" min="1" step="1">
+    </div>
+
+    <input type="file" id="imageInput" accept="image/*">
+    <br>
+    <canvas id="outputCanvas"></canvas>
+    <br>
+    <button id="downloadButton" style="display: none;">Download Image</button>
+
+    <script>
+        function rotateDice(direction) {
+            const dice = document.getElementById('dice');
+            
+            switch(direction) {
+                case 'fronttoleft':
+                    dice.style.transform = 'rotateY(90deg)';
+                    break;
+                case 'fronttoright':
+                    dice.style.transform = 'rotateY(-90deg)';
+                    break;
+                case 'fronttoback':
+                    dice.style.transform = 'rotateY(180deg)';
+                    break;
+                case 'fronttotop':
+                    dice.style.transform = 'rotateX(-90deg)';
+                    break;
+                case 'fronttopbottom':
+                    dice.style.transform = 'rotateX(90deg)';
+                    break;
+                case 'front':
+                    dice.style.transform = 'rotateY(0) rotateX(0)';
+                    break;
+            }
+        }
+
+        let numDiceWide = 50;
+        let numDiceTall = 50;
+
+        const diceImages = {
+            1: "1.png",
+            2: "2.png",
+            3: "3.png",
+            4: "4.png",
+            5: "5.png",
+            6: "6.png"
+        };
+
+        const outputCanvas = document.getElementById('outputCanvas');
+        const ctx = outputCanvas.getContext('2d');
+        const downloadButton = document.getElementById('downloadButton');
+
+        function greyscaleToDiceValue(val) {
+            if (val < 42) return 1;
+            else if (val < 84) return 2;
+            else if (val < 126) return 3;
+            else if (val < 168) return 4;
+            else if (val < 210) return 5;
+            return 6;
+        }
+
+        async function drawDiceImage(pixels, diceWidth, diceHeight) {
+            const outputWidth = diceWidth * numDiceWide;
+            const outputHeight = diceHeight * numDiceTall;
+            outputCanvas.width = outputWidth;
+            outputCanvas.height = outputHeight;
+
+            for (let i = 0; i < pixels.length; i++) {
+                const grayscaleValue = pixels[i];
+                const diceValue = greyscaleToDiceValue(grayscaleValue);
+                const x = (i % numDiceWide) * diceWidth;
+                const y = Math.floor(i / numDiceWide) * diceHeight;
+
+                const img = new Image();
+                img.src = diceImages[diceValue];
+
+                // Wait for the image to load before drawing it
+                await new Promise((resolve) => {
+                    img.onload = () => {
+                        ctx.drawImage(img, x, y, diceWidth, diceHeight);
+                        resolve();
+                    };
+                });
+            }
+
+            downloadButton.style.display = 'block';
+        }
+
+        document.getElementById('imageInput').addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const img = new Image();
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+
+            img.onload = async function () {
+                const tempCanvas = document.createElement('canvas');
+                const tempCtx = tempCanvas.getContext('2d');
+                tempCanvas.width = img.width;
+                tempCanvas.height = img.height;
+                tempCtx.drawImage(img, 0, 0);
+
+                const pixels = tempCtx.getImageData(0, 0, img.width, img.height).data;
+                const grayscalePixels = [];
+                for (let i = 0; i < pixels.length; i += 4) {
+                    const avg = (pixels[i] + pixels[i + 1] + pixels[i + 2]) / 3;
+                    grayscalePixels.push(avg);
+                }
+
+                await drawDiceImage(grayscalePixels, 100, 100);
+            };
+        });
+
+        downloadButton.addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = 'dice_image.png';
+            link.href = outputCanvas.toDataURL();
+            link.click();
+        });
+
+        setInterval(() => {
+            const directions = ['front', 'fronttoleft', 'fronttoright', 'fronttoback', 'fronttotop', 'fronttopbottom'];
+            rotateDice(directions[Math.floor(Math.random() * directions.length)]);
+        }, 1000);
+    </script>
+</body>
+</html> -->
